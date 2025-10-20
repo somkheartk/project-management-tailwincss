@@ -1,6 +1,57 @@
-import { mockTasks, mockTeamMembers, mockProjects } from '@/lib/mockData';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { tasksApi, teamMembersApi, projectsApi, Task, TeamMember, Project } from '@/lib/api';
 
 export default function TasksPage() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [tasksData, teamMembersData, projectsData] = await Promise.all([
+          tasksApi.getAll(),
+          teamMembersApi.getAll(),
+          projectsApi.getAll(),
+        ]);
+        setTasks(tasksData);
+        setTeamMembers(teamMembersData);
+        setProjects(projectsData);
+      } catch (err) {
+        setError('Failed to load data. Make sure the backend is running.');
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <p className="text-red-800 dark:text-red-200">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const columns = [
     { id: 'todo', title: 'To Do', color: 'bg-gray-500' },
     { id: 'in-progress', title: 'In Progress', color: 'bg-blue-500' },
@@ -19,7 +70,7 @@ export default function TasksPage() {
   };
 
   const getTasksByStatus = (status: string) => {
-    return mockTasks.filter(task => task.status === status);
+    return tasks.filter(task => task.status === status);
   };
 
   return (
@@ -82,8 +133,8 @@ export default function TasksPage() {
                 {/* Tasks Container */}
                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-b-xl border border-gray-200 dark:border-gray-700 border-t-0 p-4 min-h-[600px] space-y-3">
                   {tasks.map((task) => {
-                    const assignee = mockTeamMembers.find(m => m.id === task.assignee);
-                    const project = mockProjects.find(p => p.id === task.projectId);
+                    const assignee = teamMembers.find(m => m.id === task.assignee || m._id === task.assignee);
+                    const project = projects.find(p => p.id === task.projectId || p._id === task.projectId);
                     
                     return (
                       <div

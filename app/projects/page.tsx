@@ -1,6 +1,50 @@
-import { mockProjects, mockTeamMembers } from '@/lib/mockData';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { projectsApi, teamMembersApi, Project, TeamMember } from '@/lib/api';
 
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [projectsData, teamMembersData] = await Promise.all([
+          projectsApi.getAll(),
+          teamMembersApi.getAll(),
+        ]);
+        setProjects(projectsData);
+        setTeamMembers(teamMembersData);
+      } catch (err) {
+        setError('Failed to load data. Make sure the backend is running.');
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      </div>
+    );
+  }
   const getStatusBadge = (status: string) => {
     const badges = {
       active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -27,7 +71,7 @@ export default function ProjectsPage() {
       {/* Project Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         {['active', 'planning', 'completed', 'on-hold'].map((status) => {
-          const count = mockProjects.filter(p => p.status === status).length;
+          const count = projects.filter(p => p.status === status).length;
           const statusLabels = {
             active: 'Active',
             planning: 'Planning',
@@ -59,7 +103,7 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {mockProjects.map((project) => (
+        {projects.map((project) => (
           <div
             key={project.id}
             className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 overflow-hidden group"
@@ -125,7 +169,7 @@ export default function ProjectsPage() {
               <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
                 <div className="flex -space-x-2">
                   {project.teamMembers.slice(0, 4).map((memberId) => {
-                    const member = mockTeamMembers.find(m => m.id === memberId);
+                    const member = teamMembers.find(m => m.id === memberId || m._id === memberId);
                     return (
                       <div
                         key={memberId}
