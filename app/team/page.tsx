@@ -1,12 +1,57 @@
-import { mockTeamMembers, mockTasks } from '@/lib/mockData';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { teamMembersApi, tasksApi, Task, TeamMember } from '@/lib/api';
 
 export default function TeamPage() {
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [teamMembersData, tasksData] = await Promise.all([
+          teamMembersApi.getAll(),
+          tasksApi.getAll(),
+        ]);
+        setTeamMembers(teamMembersData);
+        setTasks(tasksData);
+      } catch (err) {
+        setError('Failed to load data. Make sure the backend is running.');
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   const getTotalTasks = (memberId: string) => {
-    return mockTasks.filter(task => task.assignee === memberId).length;
+    return tasks.filter(task => task.assignee === memberId).length;
   };
 
   const getCompletedTasks = (memberId: string) => {
-    return mockTasks.filter(task => task.assignee === memberId && task.status === 'done').length;
+    return tasks.filter(task => task.assignee === memberId && task.status === 'done').length;
   };
 
   const getCompletionRate = (memberId: string) => {
@@ -17,10 +62,10 @@ export default function TeamPage() {
   };
 
   const teamStats = {
-    totalMembers: mockTeamMembers.length,
-    totalTasks: mockTasks.length,
-    completedTasks: mockTasks.filter(t => t.status === 'done').length,
-    activeMembers: mockTeamMembers.filter(m => getTotalTasks(m.id) > 0).length,
+    totalMembers: teamMembers.length,
+    totalTasks: tasks.length,
+    completedTasks: tasks.filter(t => t.status === 'done').length,
+    activeMembers: teamMembers.filter(m => getTotalTasks(m.id || m._id || '')).length,
   };
 
   return (
@@ -80,12 +125,13 @@ export default function TeamPage() {
 
       {/* Team Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {mockTeamMembers.map((member) => {
-          const totalTasks = getTotalTasks(member.id);
-          const completedTasks = getCompletedTasks(member.id);
-          const completionRate = getCompletionRate(member.id);
-          const inProgressTasks = mockTasks.filter(
-            t => t.assignee === member.id && t.status === 'in-progress'
+        {teamMembers.map((member) => {
+          const memberId = member.id || member._id || '';
+          const totalTasks = getTotalTasks(memberId);
+          const completedTasks = getCompletedTasks(memberId);
+          const completionRate = getCompletionRate(memberId);
+          const inProgressTasks = tasks.filter(
+            t => t.assignee === memberId && t.status === 'in-progress'
           ).length;
 
           return (
@@ -180,16 +226,17 @@ export default function TeamPage() {
           Top Performers
         </h2>
         <div className="space-y-4">
-          {[...mockTeamMembers]
+          {[...teamMembers]
             .sort((a, b) => {
-              const rateA = getCompletionRate(a.id);
-              const rateB = getCompletionRate(b.id);
+              const rateA = getCompletionRate(a.id || a._id || '');
+              const rateB = getCompletionRate(b.id || b._id || '');
               return rateB - rateA;
             })
             .slice(0, 5)
             .map((member, index) => {
-              const completionRate = getCompletionRate(member.id);
-              const totalTasks = getTotalTasks(member.id);
+              const memberId = member.id || member._id || '';
+              const completionRate = getCompletionRate(memberId);
+              const totalTasks = getTotalTasks(memberId);
               const medals = ['🥇', '🥈', '🥉'];
               
               return (

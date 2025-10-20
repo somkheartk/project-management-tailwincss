@@ -1,15 +1,63 @@
-import { mockProjects, mockTasks, mockTeamMembers } from '@/lib/mockData';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { projectsApi, tasksApi, teamMembersApi, Project, Task, TeamMember } from '@/lib/api';
 
 export default function Home() {
-  const activeProjects = mockProjects.filter(p => p.status === 'active');
-  const totalTasks = mockTasks.length;
-  const completedTasks = mockTasks.filter(t => t.status === 'done').length;
-  const inProgressTasks = mockTasks.filter(t => t.status === 'in-progress').length;
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [projectsData, tasksData, teamMembersData] = await Promise.all([
+          projectsApi.getAll(),
+          tasksApi.getAll(),
+          teamMembersApi.getAll(),
+        ]);
+        setProjects(projectsData);
+        setTasks(tasksData);
+        setTeamMembers(teamMembersData);
+      } catch (err) {
+        setError('Failed to load data. Make sure the backend is running.');
+        console.error('Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const activeProjects = projects.filter(p => p.status === 'active');
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'done').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
 
   const stats = [
     { 
       label: 'Total Projects', 
-      value: mockProjects.length, 
+      value: projects.length, 
       color: 'text-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20',
       icon: '📊'
@@ -30,7 +78,7 @@ export default function Home() {
     },
     { 
       label: 'Team Members', 
-      value: mockTeamMembers.length, 
+      value: teamMembers.length, 
       color: 'text-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20',
       icon: '👥'
